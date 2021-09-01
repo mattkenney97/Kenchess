@@ -21,6 +21,52 @@ class chessBoard {
         };
         this.cols = ['a','b','c','d','e','f','g','h'];
         this.enPassant = false;
+        this.lastMove = null;
+        this.whiteCastleShort = true;
+        this.whiteCastleLong = true;
+        this.blackCastleShort = true;
+        this.blackCastleLong = true;
+
+        this.whitePosition = {
+            'a1': 'rook',
+            'b1': 'knight',
+            'c1': 'bishop',
+            'd1': 'queen',
+            'e1': 'king',
+            'f1': 'bishop',
+            'g1': 'knight',
+            'h1': 'rook',
+            'a2': 'pawn',
+            'b2': 'pawn',
+            'c2': 'pawn',
+            'd2': 'pawn',
+            'e2': 'pawn',
+            'f2': 'pawn',
+            'g2': 'pawn',
+            'h2': 'pawn',
+        };
+
+        this.blackPosition = {
+            'a8': 'rook',
+            'b8': 'knight',
+            'c8': 'bishop',
+            'd8': 'queen',
+            'e8': 'king',
+            'f8': 'bishop',
+            'g8': 'knight',
+            'h8': 'rook',
+            'a7': 'pawn',
+            'b7': 'pawn',
+            'c7': 'pawn',
+            'd7': 'pawn',
+            'e7': 'pawn',
+            'f7': 'pawn',
+            'g7': 'pawn',
+            'h7': 'pawn',
+        };
+
+        this.newWhitePosition = {};
+        this.newBlackPosition = {};
 
         this.createBoardButtons()
     }
@@ -62,6 +108,10 @@ class chessBoard {
                                 board.enPassant = false
                             }
                             if(validMove) {
+                                //Update white and black positions
+                                board.updatePositions(check,button)
+                                console.log(board.whitePosition)
+                                console.log(board.blackPosition)
                                 button.innerHTML = check.innerHTML
                                 check.innerHTML = null
                             }
@@ -76,6 +126,27 @@ class chessBoard {
 
         }
         return
+    }
+
+    updatePositions(start,end) {
+        if(Object.values(this.whitePieces).includes(start.innerHTML)) {
+            let pieceToMove = this.whitePosition[start.name];
+            delete this.whitePosition[start.name]
+            this.whitePosition[end.name] = pieceToMove
+
+            if(Object.keys(this.blackPosition).includes(end.name)) {
+                delete this.blackPosition[end.name]
+            }
+        }
+        else {
+            let pieceToMove = this.blackPosition[start.name];
+            delete this.blackPosition[start.name]
+            this.blackPosition[end.name] = pieceToMove
+
+            if(Object.keys(this.whitePosition).includes(end.name)) {
+                delete this.whitePosition[end.name]
+            }
+        }
     }
 
     validWhitePawnMove(start, end) {
@@ -119,6 +190,7 @@ class chessBoard {
 
         if(front2 != null) {
             this.enPassant = true
+            this.lastMove = end
         }
         else {
             this.enPassant = false
@@ -170,6 +242,7 @@ class chessBoard {
 
         if(front2 != null) {
             this.enPassant = true
+            this.lastMove = end
         }
         else {
             this.enPassant = false
@@ -211,6 +284,18 @@ class chessBoard {
             if (Object.values(pieces).includes(end.innerHTML)) {
                 leftFront = this.cols[ind + leftChange] + (parseInt(start.name[1]) + rowChange)
             }
+            if(this.enPassant && parseInt(this.lastMove.name[1]) === (parseInt(end.name[1]) + leftChange) && this.cols[ind + leftChange] === this.lastMove.name[0]) {
+                console.log('En passant!')
+                leftFront = this.cols[ind + leftChange] + (parseInt(start.name[1]) + rowChange)
+                if (end.name == leftFront) {
+                    this.updateEnPassantPositions()
+                    this.lastMove.innerHTML = null
+                    this.enPassant = false
+                    return [leftFront, null]
+                }
+                leftFront = null
+                
+            }
             if (end.name != leftFront) {
                 leftFront = null
             }
@@ -219,11 +304,31 @@ class chessBoard {
             if (Object.values(pieces).includes(end.innerHTML)) {
                 rightFront = this.cols[ind + rightChange] + (parseInt(start.name[1]) + rowChange)
             }
+            if(this.enPassant && parseInt(this.lastMove.name[1]) === (parseInt(end.name[1]) + leftChange) && this.cols[ind + rightChange] === this.lastMove.name[0]) {
+                console.log('En passant!')
+                rightFront = this.cols[ind + rightChange] + (parseInt(start.name[1]) + rowChange)
+                if (end.name == rightFront) {
+                    this.updateEnPassantPositions()
+                    this.lastMove.innerHTML = null
+                    this.enPassant = false
+                    return [null, rightFront]
+                }
+                rightFront = null
+            }
             if (end.name != rightFront) {
                 rightFront = null
             }
         }
         return [leftFront, rightFront]
+    }
+
+    updateEnPassantPositions() {
+        if(Object.values(this.whitePieces).includes(this.lastMove.innerHTML)) {
+            delete this.whitePosition[this.lastMove.name]
+        }
+        else {
+            delete this.blackPosition[this.lastMove.name]
+        }
     }
 
     pawnBackRank(start, whitePawn = false) {
@@ -237,24 +342,37 @@ class chessBoard {
         while(noValidInput) {
             let newPiece = prompt("Choose: Queen, Rook, Bishop, Knight");
             if (newPiece.toLowerCase() == 'queen') {
+                this.updateBackRankPosition(start, 'queen')
                 start.innerHTML = pieces['queen']
                 noValidInput = false
             }
             else if (newPiece.toLowerCase() == 'rook') {
+                this.updateBackRankPosition(start, 'rook')
                 start.innerHTML = pieces['rook']
                 noValidInput = false
             }
             else if (newPiece.toLowerCase() == 'bishop') {
+                this.updateBackRankPosition(start, 'bishop')
                 start.innerHTML = pieces['bishop']
                 noValidInput = false
             }
             else if (newPiece.toLowerCase() == 'knight') {
+                this.updateBackRankPosition(start, 'knight')
                 start.innerHTML = pieces['knight']
                 noValidInput = false
             }
             else {
                 'Please write one of 4 options: Queen, Rook, Bishop, Knight'
             }
+        }
+    }
+
+    updateBackRankPosition(backRankSpace, piece) {
+        if(Object.values(this.whitePieces).includes(backRankSpace.innerHTML)) {
+            this.whitePosition[backRankSpace.name] = piece
+        }
+        else {
+            this.blackPosition[backRankSpace.name] = piece
         }
     }
 
@@ -267,6 +385,20 @@ class chessBoard {
         if(!this.validLinearMove(start,end)) {
             console.log('Invalid rook move')
             return false
+        }
+
+        //Invalidate castling if rook moves
+        if(start.name === 'a1') {
+            this.whiteCastleLong = false
+        }
+        else if(start.name === 'h1') {
+            this.whiteCastleShort = false
+        }
+        else if(start.name === 'a8') {
+            this.blackCastleLong = false
+        }
+        else if(start.name === 'h8') {
+            this.blackCastleShort = false
         }
         return true
     }
@@ -329,6 +461,40 @@ class chessBoard {
         let startRowInd = start.name[1] - 1;
         let endRowInd = end.name[1] - 1;
 
+        //Check castling
+        if(Math.abs(startColInd-endColInd) === 2 && startRowInd - endRowInd === 0) {
+            let castleGood = false
+            if(start.innerHTML === this.whitePieces['king']) {
+                let rookPiece = this.whitePieces['rook']
+                if(end.name === 'c1' && this.whiteCastleLong ) {
+                    let spacesToCheck = ['b1','c1','d1'];
+                    let spacesToSwitch = ['a1','d1'];
+                    castleGood = this.checkCastlingEmptySpaces(spacesToCheck, spacesToSwitch,rookPiece)
+                }
+                else if(end.name == 'g1' && this.whiteCastleShort) {
+                    let spacesToCheck = ['f1','g1'];
+                    let spacesToSwitch = ['h1','f1'];
+                    castleGood = this.checkCastlingEmptySpaces(spacesToCheck, spacesToSwitch,rookPiece)
+                }
+            }
+            else {
+                let rookPiece = this.blackPieces['rook']
+                if(end.name === 'c8' && this.blackCastleLong) {
+                    let spacesToCheck = ['b8','c8','d8'];
+                    let spacesToSwitch = ['a8','d8'];
+                    castleGood = this.checkCastlingEmptySpaces(spacesToCheck, spacesToSwitch,rookPiece)
+                }
+                else if(end.name == 'g8' && this.blackCastleShort) {
+                    let spacesToCheck = ['f8','g8'];
+                    let spacesToSwitch = ['h8','f8'];
+                    castleGood = this.checkCastlingEmptySpaces(spacesToCheck, spacesToSwitch,rookPiece)
+                }
+            }
+            if(castleGood) {
+                return true
+            }
+        }
+
         if(Math.abs(startRowInd-endRowInd) > 1) {
             console.log('Invalid king move')
             return false
@@ -338,8 +504,39 @@ class chessBoard {
             return false
         }
         else {
+            if(start.innerHTML === this.whitePieces['king']) {
+                this.whiteCastleShort = false
+                this.whiteCastleLong = false
+            }
+            else {
+                this.blackCastleShort = false
+                this.blackCastleLong = false
+            }
             return true
         }
+    }
+
+    checkCastlingEmptySpaces(spacesToCheck, spacesToSwitch,rookPiece) {
+        for( let currentSpace of spacesToCheck ){
+            let boardSpace = document.querySelector(`button[name="${currentSpace}"]`);
+            if(boardSpace.innerHTML != "") {
+                return false
+            }
+        }
+
+        let rookSpace = document.querySelector(`button[name="${spacesToSwitch[0]}"]`);
+        let newRookSpace = document.querySelector(`button[name="${spacesToSwitch[1]}"]`);
+        if(Object.values(this.whitePieces).includes(rookSpace.innerHTML)) {
+            delete this.whitePosition[rookSpace.name]
+            this.whitePosition[newRookSpace.name] = 'rook'
+        }
+        else {
+            delete this.blackPosition[rookSpace.name]
+            this.blackPosition[newRookSpace.name] = 'rook'
+        }
+        rookSpace.innerHTML = ""
+        newRookSpace.innerHTML = rookPiece
+        return true
     }
 
     validQueenMove(start, end) {
@@ -506,6 +703,21 @@ class chessBoard {
             return false
         }
     }
+}
+
+checkForChecks(whiteMove) {
+    //If white to move
+    if(whiteMove) {
+        for(let piece of this.blackPosition) {
+
+        }
+    }
+    else {
+
+    }
+        //Loop through black position with positions updated post move
+            //Check all spaces black is attacking
+                //If white king is under attack revert to old positions
 }
 
 const board = new chessBoard();
