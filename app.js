@@ -1,4 +1,4 @@
-
+var stockfish = require("stockfish");
 class chessBoard {
     constructor() {
         this.boardButtons = document.querySelectorAll("button[class='boardSquare']");
@@ -20,6 +20,16 @@ class chessBoard {
             'pawn': '\u2659',
         };
         this.cols = ['a','b','c','d','e','f','g','h'];
+        this.colsMap = {
+            'a': 0,
+            'b': 1,
+            'c': 2,
+            'd': 3,
+            'e': 4,
+            'f': 5,
+            'g': 6,
+            'h': 7,
+        };
         this.enPassant = false;
         this.lastMove = null;
         this.whiteCastleShort = true;
@@ -128,8 +138,6 @@ class chessBoard {
                             if(validMove) {
                                 //Update white and black positions
                                 if(board.updatePositions(check,button,castleGood,enPassantName,backRankPiece)) {
-                                    // button.innerHTML = check.innerHTML
-                                    // check.innerHTML = null
                                     board.updateBoardHtml()
                                 }
                             }
@@ -192,6 +200,14 @@ class chessBoard {
                 this.blackPosition = Object.assign({},this.oldBlackPosition)
                 return false
             }
+
+            if(this.checkForChecks(false)) {
+                //Check if black is in checkmate
+                if(this.checkAllMoves('black')) {
+                    console.log('Checkmate!')
+                    alert('Checkmate!')
+                }
+            }
         }
         else {
             let pieceToMove = this.blackPosition[start.name];
@@ -221,6 +237,13 @@ class chessBoard {
                 this.whitePosition = Object.assign({},this.oldWhitePosition)
                 this.blackPosition = Object.assign({},this.oldBlackPosition)
                 return false
+            }
+
+            if(this.checkForChecks(true)) {
+                //Check if white is in checkmate
+                if(this.checkAllMoves('white')) {
+                    console.log('Checkmate!')
+                }
             }
         }
         return true
@@ -527,29 +550,27 @@ class chessBoard {
         if(Math.abs(startColInd-endColInd) === 2 && startRowInd - endRowInd === 0) {
             let castleGood = false
             if(start.innerHTML === this.whitePieces['king']) {
-                let rookPiece = this.whitePieces['rook']
-                if(end.name === 'c1' && this.whiteCastleLong ) {
-                    let spacesToCheck = ['b1','c1','d1'];
-                    let spacesToSwitch = ['a1','d1'];
-                    castleGood = this.checkCastlingEmptySpaces(spacesToCheck, spacesToSwitch,rookPiece)
-                }
-                else if(end.name == 'g1' && this.whiteCastleShort) {
-                    let spacesToCheck = ['f1','g1'];
-                    let spacesToSwitch = ['h1','f1'];
-                    castleGood = this.checkCastlingEmptySpaces(spacesToCheck, spacesToSwitch,rookPiece)
+                if(!this.checkForChecks(true)) {
+                    if(end.name === 'c1' && this.whiteCastleLong ) {
+                        let spacesToCheck = ['b1','c1','d1'];
+                        castleGood = this.checkCastlingEmptySpaces(spacesToCheck,'white')
+                    }
+                    else if(end.name == 'g1' && this.whiteCastleShort) {
+                        let spacesToCheck = ['f1','g1'];
+                        castleGood = this.checkCastlingEmptySpaces(spacesToCheck,'white')
+                    }
                 }
             }
             else {
-                let rookPiece = this.blackPieces['rook']
-                if(end.name === 'c8' && this.blackCastleLong) {
-                    let spacesToCheck = ['b8','c8','d8'];
-                    let spacesToSwitch = ['a8','d8'];
-                    castleGood = this.checkCastlingEmptySpaces(spacesToCheck, spacesToSwitch,rookPiece)
-                }
-                else if(end.name == 'g8' && this.blackCastleShort) {
-                    let spacesToCheck = ['f8','g8'];
-                    let spacesToSwitch = ['h8','f8'];
-                    castleGood = this.checkCastlingEmptySpaces(spacesToCheck, spacesToSwitch,rookPiece)
+                if(!this.checkForChecks(false)) {
+                    if(end.name === 'c8' && this.blackCastleLong) {
+                        let spacesToCheck = ['b8','c8','d8'];
+                        castleGood = this.checkCastlingEmptySpaces(spacesToCheck,'black')
+                    }
+                    else if(end.name == 'g8' && this.blackCastleShort) {
+                        let spacesToCheck = ['f8','g8'];
+                        castleGood = this.checkCastlingEmptySpaces(spacesToCheck,'black')
+                    }
                 }
             }
             if(castleGood) {
@@ -578,26 +599,34 @@ class chessBoard {
         }
     }
 
-    checkCastlingEmptySpaces(spacesToCheck, spacesToSwitch,rookPiece) {
+    checkCastlingEmptySpaces(spacesToCheck, color) {
         for( let currentSpace of spacesToCheck ){
             let boardSpace = document.querySelector(`button[name="${currentSpace}"]`);
             if(boardSpace.innerHTML != "") {
                 return false
             }
-        }
 
-        // let rookSpace = document.querySelector(`button[name="${spacesToSwitch[0]}"]`);
-        // let newRookSpace = document.querySelector(`button[name="${spacesToSwitch[1]}"]`);
-        // if(Object.values(this.whitePieces).includes(rookSpace.innerHTML)) {
-        //     delete this.whitePosition[rookSpace.name]
-        //     this.whitePosition[newRookSpace.name] = 'rook'
-        // }
-        // else {
-        //     delete this.blackPosition[rookSpace.name]
-        //     this.blackPosition[newRookSpace.name] = 'rook'
-        // }
-        // rookSpace.innerHTML = ""
-        // newRookSpace.innerHTML = rookPiece
+            this.oldWhitePosition = Object.assign({},this.whitePosition)
+            this.oldBlackPosition = Object.assign({},this.blackPosition)
+
+            if(color === 'white') {
+                this.whitePosition[currentSpace] = 'king'
+                if(this.checkForChecks(true)) {
+                    this.whitePosition = Object.assign({},this.oldWhitePosition)
+                    return false
+                }
+            }
+            else {
+                this.blackPosition[currentSpace] = 'king'
+                if(this.checkForChecks(false)) {
+                    this.blackPosition = Object.assign({},this.oldBlackPosition)
+                    return false
+                }
+            }
+
+            this.whitePosition = Object.assign({},this.oldWhitePosition)
+            this.blackPosition = Object.assign({},this.oldBlackPosition)
+        }
         return true
     }
 
@@ -764,6 +793,632 @@ class chessBoard {
         }
     }
 
+    checkAllMoves(color) {
+        let movePosition = null;
+        let oppPosition = null;
+        let x = null;
+        if(color === 'white') {
+            movePosition = this.whitePosition;
+            oppPosition = this.blackPosition;
+        }
+        else {
+            movePosition = this.blackPosition;
+            oppPosition = this.whitePosition;
+        }
+
+        for(let piece in movePosition) {
+            let startColInd = this.colsMap[piece[0]];
+            
+            if(movePosition[piece] === 'pawn') {
+                //If pawn available check all moves
+                if(this.checkAllPawnMoves(piece,color,startColInd)) {
+                    return false
+                }
+            }
+            else if(movePosition[piece] === 'rook') {
+                //If rook available check all moves
+                if(this.checkAllRookMoves(piece,color,startColInd)) {
+                    return false
+                }
+            }
+            else if(movePosition[piece] === 'bishop') {
+                //If bishop available check all moves
+                if(this.checkAllBishopMoves(piece,color,startColInd)) {
+                    return false
+                }
+            }
+            else if(movePosition[piece] === 'knight') {
+                //If knight available check all moves
+                if(this.checkAllKnightMoves(piece,color,startColInd)) {
+                    return false
+                }
+            }
+            else if(movePosition[piece] === 'queen') {
+                //If queen available check all moves
+                if(this.checkAllQueenMoves(piece,color,startColInd)) {
+                    return false
+                }
+            }
+            else if(movePosition[piece] === 'king') {
+                //If king available check all moves
+                if(this.checkAllKingMoves(piece,color,startColInd)) {
+                    return false
+                }
+            }
+
+        }
+        return true
+    }
+
+    reversePositionChange(moveColor,oldOppPosition,oldMovePosition) {
+        if(moveColor === 'white') {
+            this.blackPosition = oldOppPosition
+            this.whitePosition = oldMovePosition
+        }
+        else {
+            this.blackPosition = oldMovePosition
+            this.whitePosition = oldOppPosition
+        }
+    }
+
+    checkAllPawnMoves(piece,moveColor,startColInd) {
+        let mateCheck = false;
+        let newMovePosition = null;
+        let newOppPosition = null;
+        let oldMovePosition = null;
+        let oldOppPosition = null;
+        let rowToCheck = parseInt(piece[1]);
+        let rowToCheck1 = null;
+        let rowToCheck2 = null;
+
+        if(moveColor === 'white') {
+            newMovePosition = this.whitePosition
+            newOppPosition = this.blackPosition
+            oldMovePosition = {...this.whitePosition,}
+            oldOppPosition = {...this.blackPosition,}
+            rowToCheck1 = rowToCheck + 1
+            if(parseInt(piece[1]) === 2) {
+                rowToCheck2 = rowToCheck + 2
+            }
+        }
+        else {
+            newMovePosition = this.blackPosition
+            newOppPosition = this.whitePosition
+            oldMovePosition = {...this.blackPosition,}
+            oldOppPosition = {...this.whitePosition,}
+            rowToCheck1 = rowToCheck - 1
+            if(parseInt(piece[1]) === 7) {
+                rowToCheck2 = rowToCheck - 2
+            }
+        }
+
+        delete newMovePosition[piece]
+        let moveForward = piece[0] + rowToCheck1;
+        if(!newOppPosition[moveForward]  && !newMovePosition[moveForward]) {
+            newMovePosition[moveForward] = 'pawn'
+            mateCheck = this.checkMateChecker(moveColor)
+            delete newMovePosition[moveForward]
+            if(mateCheck) {
+                this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+                return true
+            }
+        }
+
+        if( rowToCheck2 != null) {
+            let moveForward2 = piece[0] + rowToCheck2;
+            if(!newOppPosition[moveForward2] && !newMovePosition[moveForward2] &&
+                !newOppPosition[moveForward] && !newMovePosition[moveForward]) {
+                newMovePosition[moveForward2] = 'pawn'
+                mateCheck = this.checkMateChecker(moveColor)
+                delete newMovePosition[moveForward2]
+                if(mateCheck) {
+                    this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+                    return true
+                }
+            }
+        }
+
+        if(startColInd > 0) {
+            let pawnTakes = this.cols[startColInd - 1] + rowToCheck1;
+            if(newOppPosition[pawnTakes] != null) {
+                newMovePosition[pawnTakes] = 'pawn'
+                let tempPiece = newOppPosition[pawnTakes]
+                delete newOppPosition[pawnTakes]
+                mateCheck = this.checkMateChecker(moveColor)
+                newOppPosition[pawnTakes] = tempPiece
+                delete newMovePosition[pawnTakes]
+                if(mateCheck) {
+                    this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+                    return true
+                }
+            }
+        }
+        if(startColInd < 7) {
+            let pawnTakes = this.cols[startColInd + 1] + rowToCheck1;
+            if(newOppPosition[pawnTakes] != null) {
+                newMovePosition[pawnTakes] = 'pawn'
+                let tempPiece = newOppPosition[pawnTakes]
+                delete newOppPosition[pawnTakes]
+                mateCheck = this.checkMateChecker(moveColor)
+                newOppPosition[pawnTakes] = tempPiece
+                delete newMovePosition[pawnTakes]
+                if(mateCheck) {
+                    this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+                    return true
+                }
+            }
+        }
+
+        this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+        return false
+    }
+
+    checkAllBishopMoves(piece,moveColor,startColInd,pieceName='bishop') {
+        let mateCheck = false;
+        let newMovePosition = null;
+        let newOppPosition = null;
+        let oldMovePosition = null;
+        let oldOppPosition = null;
+
+        if(moveColor === 'white') {
+            newMovePosition = this.whitePosition
+            newOppPosition = this.blackPosition
+            oldMovePosition = {...this.whitePosition,}
+            oldOppPosition = {...this.blackPosition,}
+        }
+        else {
+            newMovePosition = this.blackPosition
+            newOppPosition = this.whitePosition
+            oldMovePosition = {...this.blackPosition,}
+            oldOppPosition = {...this.whitePosition,}
+        }
+
+        delete newMovePosition[piece]
+        //Go up left
+        let colHolder = startColInd - 1
+        let rowHolder = parseInt(piece[1]) + 1
+        while( colHolder >= 0 && rowHolder <= 8) {
+            let currentSpace = this.cols[colHolder] + rowHolder;
+            if(newMovePosition[currentSpace] != null) {
+                break
+            }
+
+            newMovePosition[currentSpace] = pieceName
+
+            if(newOppPosition[currentSpace] != null) {
+                let tempPiece = newOppPosition[currentSpace]
+                delete newOppPosition[currentSpace]
+                mateCheck = this.checkMateChecker(moveColor)
+                newOppPosition[currentSpace] = tempPiece
+                break
+            }
+            else {
+                mateCheck = this.checkMateChecker(moveColor)
+            }
+            delete newMovePosition[currentSpace]
+
+            if(mateCheck) {
+                this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+                return true
+            }
+            --colHolder
+            ++rowHolder
+        }
+
+        //Go up right
+        colHolder = startColInd + 1
+        rowHolder = parseInt(piece[1]) + 1
+        while( colHolder < 8 && rowHolder <= 8) {
+            let currentSpace = this.cols[colHolder] + rowHolder;
+            if(newMovePosition[currentSpace] != null) {
+                break
+            }
+
+            newMovePosition[currentSpace] = pieceName
+
+            if(newOppPosition[currentSpace] != null) {
+                let tempPiece = newOppPosition[currentSpace]
+                delete newOppPosition[currentSpace]
+                mateCheck = this.checkMateChecker(moveColor)
+                newOppPosition[currentSpace] = tempPiece
+                break
+            }
+            else {
+                mateCheck = this.checkMateChecker(moveColor)
+            }
+            delete newMovePosition[currentSpace]
+
+            if(mateCheck) {
+                this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+                return true
+            }
+            ++colHolder
+            ++rowHolder
+        }
+
+        //Go down left 
+        colHolder = startColInd - 1
+        rowHolder = parseInt(piece[1]) - 1
+        while( colHolder >= 0 && rowHolder >= 0) {
+            let currentSpace = this.cols[colHolder] + rowHolder;
+            if(newMovePosition[currentSpace] != null) {
+                break
+            }
+
+            newMovePosition[currentSpace] = pieceName
+
+            if(newOppPosition[currentSpace] != null) {
+                let tempPiece = newOppPosition[currentSpace]
+                delete newOppPosition[currentSpace]
+                mateCheck = this.checkMateChecker(moveColor)
+                newOppPosition[currentSpace] = tempPiece
+                break
+            }
+            else {
+                mateCheck = this.checkMateChecker(moveColor)
+            }
+            delete newMovePosition[currentSpace]
+
+            if(mateCheck) {
+                this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+                return true
+            }
+            --colHolder
+            --rowHolder
+        }
+
+        //Go down right
+        colHolder = startColInd + 1
+        rowHolder = parseInt(piece[1]) - 1
+        while( colHolder < 8 && rowHolder >= 0) {
+            let currentSpace = this.cols[colHolder] + rowHolder;
+            if(newMovePosition[currentSpace] != null) {
+                break
+            }
+
+            newMovePosition[currentSpace] = pieceName
+
+            if(newOppPosition[currentSpace] != null) {
+                let tempPiece = newOppPosition[currentSpace]
+                delete newOppPosition[currentSpace]
+                mateCheck = this.checkMateChecker(moveColor)
+                newOppPosition[currentSpace] = tempPiece
+                break
+            }
+            else {
+                mateCheck = this.checkMateChecker(moveColor)
+            }
+            delete newMovePosition[currentSpace]
+
+            if(mateCheck) {
+                this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+                return true
+            }
+            ++colHolder
+            --rowHolder
+        } 
+
+        this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+        return false
+    }
+
+    checkAllKnightMoves(piece,moveColor,startColInd) {
+        let mateCheck = false;
+        let newMovePosition = null;
+        let newOppPosition = null;
+        let oldMovePosition = null;
+        let oldOppPosition = null;
+
+        if(moveColor === 'white') {
+            newMovePosition = this.whitePosition
+            newOppPosition = this.blackPosition
+            oldMovePosition = {...this.whitePosition,}
+            oldOppPosition = {...this.blackPosition,}
+        }
+        else {
+            newMovePosition = this.blackPosition
+            newOppPosition = this.whitePosition
+            oldMovePosition = {...this.blackPosition,}
+            oldOppPosition = {...this.whitePosition,}
+        }
+
+        delete newMovePosition[piece]
+
+        let arr1 = [-1,1];
+        let arr2 = [-2,2];
+        for(let one of arr1) {
+            for(let two of arr2) {
+                if(this.checkKnightsReverseMate(startColInd + one, parseInt(piece[1]) + two, newMovePosition,newOppPosition,moveColor)) {
+                    this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+                    return true
+                }
+                else if(this.checkKnightsReverseMate(startColInd + two, parseInt(piece[1]) + one, newMovePosition,newOppPosition,moveColor)) {
+                    this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+                    return true
+                }
+            }
+        }
+
+        this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+        return false
+    }
+
+    checkKnightsReverseMate(checkCol, checkRow, newMovePosition,newOppPosition,moveColor) {
+        let mateCheck = false
+        if(checkCol >= 0 && checkCol < 8 && checkRow > 0 && checkRow <= 8) {
+            let currentSpace = this.cols[checkCol] + checkRow;
+            if(newMovePosition[currentSpace] != null) {
+                return false
+            }
+            newMovePosition[currentSpace] = 'knight'
+
+            if(newOppPosition[currentSpace] != null) {
+                let tempPiece = newOppPosition[currentSpace]
+                delete newOppPosition[currentSpace]
+                mateCheck = this.checkMateChecker(moveColor)
+                newOppPosition[currentSpace] = tempPiece
+            }
+            else {
+                mateCheck = this.checkMateChecker(moveColor)
+            }
+            delete newMovePosition[currentSpace]
+
+            if(mateCheck) {
+                return true
+            }
+        }
+        return false
+    }
+
+    checkAllQueenMoves(piece,moveColor,startColInd) {
+        
+
+        let pieceName = 'queen'
+        if(this.checkAllRookMoves(piece,moveColor,startColInd,pieceName)) {
+            return true
+        }
+        if(this.checkAllBishopMoves(piece,moveColor,startColInd,pieceName)) {
+            return true
+        }
+        return false
+    }
+
+    checkAllKingMoves(piece,moveColor,startColInd) {
+        let mateCheck = false;
+        let newMovePosition = null;
+        let newOppPosition = null;
+        let oldMovePosition = null;
+        let oldOppPosition = null;
+
+        if(moveColor === 'white') {
+            newMovePosition = this.whitePosition
+            newOppPosition = this.blackPosition
+            oldMovePosition = {...this.whitePosition,}
+            oldOppPosition = {...this.blackPosition,}
+        }
+        else {
+            newMovePosition = this.blackPosition
+            newOppPosition = this.whitePosition
+            oldMovePosition = {...this.blackPosition,}
+            oldOppPosition = {...this.whitePosition,}
+        }
+
+        delete newMovePosition[piece]
+        let arrAround = [-1,0,1];
+
+        for(let col of arrAround) {
+            for(let row of arrAround) {
+                if(col === 0 && row === 0) {
+                    continue
+                }
+                let checkCol = startColInd+col;
+                let checkRow = parseInt(piece[1]) + row;
+                if(checkCol >= 0 && checkCol < 8 && checkRow > 0 && checkRow <= 8) {
+                    let currentSpace = this.cols[checkCol] + checkRow;
+                    if(newMovePosition[currentSpace] != null) {
+                        continue
+                    }
+                    console.log(currentSpace)
+        
+                    newMovePosition[currentSpace] = 'king'
+        
+                    if(newOppPosition[currentSpace] != null) {
+                        let tempPiece = newOppPosition[currentSpace]
+                        delete newOppPosition[currentSpace]
+                        mateCheck = this.checkMateChecker(moveColor)
+                        newOppPosition[currentSpace] = tempPiece
+                        break
+                    }
+                    else {
+                        mateCheck = this.checkMateChecker(moveColor)
+                    }
+                    delete newMovePosition[currentSpace]
+        
+                    if(mateCheck) {
+                        this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+                        return true
+                    }
+                }
+                
+            }
+        }
+
+        this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+        return false
+    }
+
+    checkAllRookMoves(piece,moveColor,startColInd,pieceName='rook') {
+        
+        let i = startColInd - 1;
+        let mateCheck = false;
+        let newMovePosition = null;
+        let newOppPosition = null;
+        let oldMovePosition = null;
+        let oldOppPosition = null;
+
+        if(moveColor === 'white') {
+            newMovePosition = this.whitePosition
+            newOppPosition = this.blackPosition
+            oldMovePosition = {...this.whitePosition,}
+            oldOppPosition = {...this.blackPosition,}
+        }
+        else {
+            newMovePosition = this.blackPosition
+            newOppPosition = this.whitePosition
+            oldMovePosition = {...this.blackPosition,}
+            oldOppPosition = {...this.whitePosition,}
+        }
+
+        delete newMovePosition[piece]
+        //Go left
+        while(i >= 0) {
+            let currentSpace = this.cols[i] + piece[1];
+            if(newMovePosition[currentSpace] != null) {
+                break
+            }
+            console.log(currentSpace)
+
+            newMovePosition[currentSpace] = pieceName
+
+            if(newOppPosition[currentSpace] != null) {
+                let tempPiece = newOppPosition[currentSpace]
+                delete newOppPosition[currentSpace]
+                mateCheck = this.checkMateChecker(moveColor)
+                newOppPosition[currentSpace] = tempPiece
+                break
+            }
+            else {
+                mateCheck = this.checkMateChecker(moveColor)
+            }
+            delete newMovePosition[currentSpace]
+
+            if(mateCheck) {
+                this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+                return true
+            }
+            i--
+        }
+
+        if(moveColor === 'white') {
+            this.blackPosition = oldOppPosition
+            this.whitePosition = oldMovePosition
+        }
+        else {
+            this.blackPosition = oldMovePosition
+            this.whitePosition = oldOppPosition
+        }
+
+        //Go right
+        i = startColInd + 1;
+        while(i < 8) {
+            let currentSpace = this.cols[i] + piece[1];
+            if(newMovePosition[currentSpace] != null) {
+                break
+            }
+            console.log(currentSpace)
+
+            newMovePosition[currentSpace] = pieceName
+
+            if(newOppPosition[currentSpace] != null) {
+                let tempPiece = newOppPosition[currentSpace]
+                delete newOppPosition[currentSpace]
+                mateCheck = this.checkMateChecker(moveColor)
+                newOppPosition[currentSpace] = tempPiece
+                break
+            }
+            else {
+                mateCheck = this.checkMateChecker(moveColor)
+            }
+            delete newMovePosition[currentSpace]
+
+            if(mateCheck) {
+                this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+                return true
+            }
+            i++
+        }
+
+        //Go down
+        i = piece[1] - 1
+        while(i > 0) {
+            let currentSpace = piece[0] + i;
+            if(newMovePosition[currentSpace] != null) {
+                break
+            }
+            console.log(currentSpace)
+
+            newMovePosition[currentSpace] = pieceName
+
+            if(newOppPosition[currentSpace] != null) {
+                let tempPiece = newOppPosition[currentSpace]
+                delete newOppPosition[currentSpace]
+                mateCheck = this.checkMateChecker(moveColor)
+                newOppPosition[currentSpace] = tempPiece
+                break
+            }
+            else {
+                mateCheck = this.checkMateChecker(moveColor)
+            }
+            delete newMovePosition[currentSpace]
+
+            if(mateCheck) {
+                this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+                return true
+            }
+            i--
+        }
+
+        //Go up
+        i = piece[1] + 1
+        while(i <= 8) {
+            let currentSpace = piece[0] + i;
+            
+            if(newMovePosition[currentSpace] != null) {
+                break
+            }
+            console.log(currentSpace)
+            newMovePosition[currentSpace] = pieceName
+
+            if(newOppPosition[currentSpace] != null) {
+                let tempPiece = newOppPosition[currentSpace]
+                delete newOppPosition[currentSpace]
+                mateCheck = this.checkMateChecker(moveColor)
+                newOppPosition[currentSpace] = tempPiece
+                break
+            }
+            else {
+                mateCheck = this.checkMateChecker(moveColor)
+            }
+            delete newMovePosition[currentSpace]
+
+            if(mateCheck) {
+                this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+                return true
+            }
+            i++
+        }
+
+        this.reversePositionChange(moveColor,oldOppPosition,oldMovePosition)
+
+        return false
+    }
+
+    checkMateChecker(moveColor) {
+        if(moveColor === 'white') {
+            if(!this.checkForChecks(true)) {
+                console.log('No mate!')
+                return true
+            }
+        }
+        else {
+            if(!this.checkForChecks(false)) {
+                console.log('No mate!')
+                return true
+            }
+        }
+        return false
+    }
+
     checkForChecks(whiteMove) {
         //If white to move
         if(whiteMove) {
@@ -812,9 +1467,7 @@ class chessBoard {
     }
 
     checkPawnChecks(piece,moveColor) {
-        let boardPiece = document.querySelector(`button[name="${piece}"]`);
-
-        let startColInd = this.getColumnIndex(boardPiece);
+        let startColInd = this.colsMap[piece[0]];
         let movePosition = null;
         let rowToCheck = parseInt(piece[1]);
         let check1 = null;
@@ -843,18 +1496,13 @@ class chessBoard {
     }
 
     checkRookChecks(piece,moveColor) {
-        let boardPiece = document.querySelector(`button[name="${piece}"]`);
-
-        let startColInd = this.getColumnIndex(boardPiece);
+        let startColInd = this.colsMap[piece[0]];
         let movePosition = null;
-        let movePieces = null;
         if(moveColor === 'black') {
             movePosition = this.blackPosition
-            movePieces = this.blackPieces
         }
         else {
             movePosition= this.whitePosition
-            movePieces = this.whitePieces
         }
 
         //Go left
@@ -888,9 +1536,9 @@ class chessBoard {
             i++
         }
         //Go up
-        i = parseInt(boardPiece.name[1]) + 1;
+        i = parseInt(piece[1]) + 1;
         while(i <= 8) {
-            let currentSpace = boardPiece.name[0] + i;
+            let currentSpace = piece[0] + i;
             if(this.whitePosition[currentSpace] != null || this.blackPosition[currentSpace] != null) {
                 if(movePosition[currentSpace] === 'king') {
                     console.log('Check found!')
@@ -903,9 +1551,9 @@ class chessBoard {
             i++
         }
         //Go down
-        i = parseInt(boardPiece.name[1]) - 1;
+        i = parseInt(piece[1]) - 1;
         while(i > 0) {
-            let currentSpace = boardPiece.name[0] + i;
+            let currentSpace = piece[0] + i;
             if(this.whitePosition[currentSpace] != null || this.blackPosition[currentSpace] != null) {
                 if(movePosition[currentSpace] === 'king') {
                     console.log('Check found!')
@@ -921,18 +1569,13 @@ class chessBoard {
     }
 
     checkBishopChecks(piece,moveColor) {
-        let boardPiece = document.querySelector(`button[name="${piece}"]`);
-
-        let startColInd = this.getColumnIndex(boardPiece);
+        let startColInd = this.colsMap[piece[0]];
         let movePosition = null;
-        let movePieces = null;
         if(moveColor === 'black') {
             movePosition = this.blackPosition
-            movePieces = this.blackPieces
         }
         else {
             movePosition= this.whitePosition
-            movePieces = this.whitePieces
         }
 
         //Go up left
@@ -990,18 +1633,13 @@ class chessBoard {
     }
 
     checkQueenChecks(piece,moveColor) {
-        let boardPiece = document.querySelector(`button[name="${piece}"]`);
-
-        let startColInd = this.getColumnIndex(boardPiece);
         let movePosition = null;
-        let movePieces = null;
+
         if(moveColor === 'black') {
             movePosition = this.blackPosition
-            movePieces = this.blackPieces
         }
         else {
             movePosition= this.whitePosition
-            movePieces = this.whitePieces
         }
 
         if(this.checkBishopChecks(piece,moveColor)) {
@@ -1014,18 +1652,13 @@ class chessBoard {
     }
 
     checkKingChecks(piece,moveColor) {
-        let boardPiece = document.querySelector(`button[name="${piece}"]`);
-
-        let startColInd = this.getColumnIndex(boardPiece);
+        let startColInd = this.colsMap[piece[0]];
         let movePosition = null;
-        let movePieces = null;
         if(moveColor === 'black') {
             movePosition = this.blackPosition
-            movePieces = this.blackPieces
         }
         else {
             movePosition= this.whitePosition
-            movePieces = this.whitePieces
         }
 
         let arrAround = [-1,0,1];
@@ -1051,18 +1684,13 @@ class chessBoard {
     }
 
     checkKnightChecks(piece,moveColor) {
-        let boardPiece = document.querySelector(`button[name="${piece}"]`);
-
-        let startColInd = this.getColumnIndex(boardPiece);
+        let startColInd = this.colsMap[piece[0]];
         let movePosition = null;
-        let movePieces = null;
         if(moveColor === 'black') {
             movePosition = this.blackPosition
-            movePieces = this.blackPieces
         }
         else {
             movePosition= this.whitePosition
-            movePieces = this.whitePieces
         }
 
         let arr1 = [-1,1];
